@@ -488,6 +488,8 @@ def compose_indoors(output_folder: Path, scene_seed: int, **overrides):
     }
 
 
+
+
 def main(args):
     scene_seed = init.apply_scene_seed(args.seed)
     init.apply_gin_configs(
@@ -504,6 +506,7 @@ def main(args):
         populate_scene_func=None,
         input_folder=args.input_folder,
         output_folder=args.output_folder,
+        waypoint_file=args.waypoint_file,
         task=args.task,
         task_uniqname=args.task_uniqname,
         scene_seed=scene_seed,
@@ -514,6 +517,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_folder", type=Path)
     parser.add_argument("--input_folder", type=Path, default=None)
+    parser.add_argument("--waypoint_file", type=str, default=None)
     parser.add_argument(
         "-s", "--seed", default=None, help="The seed used to generate the scene"
     )
@@ -552,7 +556,6 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--debug", type=str, nargs="*", default=None)
 
     args = init.parse_args_blender(parser)
-
     logging.getLogger("infinigen").setLevel(logging.INFO)
     logging.getLogger("infinigen.core.nodes.node_wrangler").setLevel(logging.CRITICAL)
 

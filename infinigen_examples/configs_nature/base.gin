@@ -52,6 +52,10 @@ full/render_image.passes_to_save = [
     ['environment', 'Env'],
     ['ambient_occlusion', 'AO'],
     ['material_index', 'IndexMA'],
+    ['z', 'Depth'],
+    ['normal', 'Normal'],
+    ['vector', 'Vector'],
+    ['object_index', 'IndexOB']
 ]
 flat/render_image.passes_to_save = [
     ['z', 'Depth'],

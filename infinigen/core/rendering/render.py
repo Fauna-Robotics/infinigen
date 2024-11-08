@@ -387,13 +387,16 @@ def render_image(
     dof_aperture_fstop=2.8,
 ):
     tic = time.time()
+    print(f"Rendering to frames_folder: {frames_folder}")
+    tmp_folder = 'tmp'
+    print(f"Temporary directory for render: {frames_folder.parent.resolve() / tmp_folder}")
 
     for exclude in excludes:
+        print(f"Hiding object {exclude} for this render")
         bpy.data.objects[exclude].hide_render = True
 
     init.configure_cycles_devices()
-
-    tmp_dir = frames_folder.parent.resolve() / "tmp"
+    tmp_dir = frames_folder.parent.resolve() / tmp_folder
     tmp_dir.mkdir(exist_ok=True)
     bpy.context.scene.render.filepath = f"{tmp_dir}{os.sep}"
 
@@ -439,18 +442,23 @@ def render_image(
 
     indices = dict(cam_rig=camrig_id, resample=0, subcam=subcam_id)
 
-    ## Update output names
+    # Update output names
     fileslot_suffix = get_suffix({"frame": "####", **indices})
     for file_slot in file_slot_nodes:
         file_slot.path = f"{file_slot.path}{fileslot_suffix}"
+    print(f"Fileslot paths updated with suffix: {fileslot_suffix}")
 
+    # Apply Depth of Field settings if specified
     if use_dof == "IF_TARGET_SET":
         use_dof = camera.data.dof.focus_object is not None
     elif use_dof is not None:
+        print(f"Setting camera DOF: {use_dof}, Aperture f-stop: {dof_aperture_fstop}")
         camera.data.dof.use_dof = use_dof
         camera.data.dof.aperture_fstop = dof_aperture_fstop
 
+    # Override render resolution if specified
     if render_resolution_override is not None:
+        print(f"Setting render resolution to: {render_resolution_override}")
         bpy.context.scene.render.resolution_x = render_resolution_override[0]
         bpy.context.scene.render.resolution_y = render_resolution_override[1]
 
@@ -459,13 +467,16 @@ def render_image(
     with Timer("Actual rendering"):
         bpy.ops.render.render(animation=True)
 
+    # Post-processing for each frame
     with Timer("Post Processing"):
         for frame in range(
             bpy.context.scene.frame_start, bpy.context.scene.frame_end + 1
         ):
+            print(f"Processing frame {frame} in post-processing")
+            bpy.context.scene.frame_set(frame)
+            suffix = get_suffix(dict(frame=frame, **indices))
+
             if flat_shading:
-                bpy.context.scene.frame_set(frame)
-                suffix = get_suffix(dict(frame=frame, **indices))
                 postprocess_blendergt_outputs(frames_folder, suffix)
             else:
                 cam_util.save_camera_parameters(
@@ -473,13 +484,11 @@ def render_image(
                     output_folder=frames_folder,
                     frame=frame,
                 )
-                bpy.context.scene.frame_set(frame)
-                suffix = get_suffix(dict(frame=frame, **indices))
                 postprocess_materialgt_output(frames_folder, suffix)
-
+    # Cleanup temporary files
     for file in tmp_dir.glob("*.png"):
+        print(f"Removing temporary file: {file}")
         file.unlink()
-
     reorganize_old_framesfolder(frames_folder)
-
-    logger.info(f"rendering time: {time.time() - tic}")
+    print("rendering complete")
+    logger.info(f"Rendering completed in {time.time() - tic} seconds")

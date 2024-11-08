@@ -962,6 +962,8 @@ def populate_scene(
     p.save_results(output_folder / "pipeline_fine.csv")
 
 
+
+
 def main(args):
     scene_seed = init.apply_scene_seed(args.seed)
     mandatory_exclusive = [Path("infinigen_examples/configs_nature/scene_types")]
@@ -978,6 +980,7 @@ def main(args):
         populate_scene_func=populate_scene,
         input_folder=args.input_folder,
         output_folder=args.output_folder,
+        waypoint_file=args.waypoint_file,
         task=args.task,
         task_uniqname=args.task_uniqname,
         scene_seed=scene_seed,
@@ -988,6 +991,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_folder", type=Path)
     parser.add_argument("--input_folder", type=Path, default=None)
+    parser.add_argument("--waypoint_file", type=str, default=None)
     parser.add_argument(
         "-s", "--seed", default=None, help="The seed used to generate the scene"
     )
@@ -1023,18 +1027,16 @@ if __name__ == "__main__":
         "e.g. --gin_param module_1.a=2 module_2.b=3",
     )
     parser.add_argument("--task_uniqname", type=str, default=None)
-    parser.add_argument("-d", "--debug", type=str, nargs="*", default=None)
+    parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_const",
+        dest="loglevel",
+        const=logging.DEBUG,
+        default=logging.INFO,
+    )
 
     args = init.parse_args_blender(parser)
-
-    logging.getLogger("infinigen").setLevel(logging.INFO)
-    logging.getLogger("infinigen.core.nodes.node_wrangler").setLevel(logging.CRITICAL)
-
-    if args.debug is not None:
-        for name in logging.root.manager.loggerDict:
-            if not name.startswith("infinigen"):
-                continue
-            if len(args.debug) == 0 or any(name.endswith(x) for x in args.debug):
-                logging.getLogger(name).setLevel(logging.DEBUG)
+    logging.getLogger("infinigen").setLevel(args.loglevel)
 
     main(args)
