@@ -981,27 +981,47 @@ def main(args):
     )
 
     targets = sorted(list(args.input_folder.iterdir()))
+    try:
+        # Copy the solve_state.json file if it exists
+        for blendfile in targets:
+            if blendfile.stem == "solve_state":
+                shutil.copy(blendfile, args.output_folder / "solve_state.json")
+    except:
+        pass
+    # Group blend files by parent directory
+    blend_groups = {}
     for blendfile in targets:
-        if blendfile.stem == "solve_state":
-            shutil.copy(blendfile, args.output_folder / "solve_state.json")
+        if blendfile.suffix == ".blend":
+            parent_dir = blendfile.parent
+            if parent_dir not in blend_groups:
+                blend_groups[parent_dir] = []
+            blend_groups[parent_dir].append(blendfile)
 
-        if not blendfile.suffix == ".blend":
-            print(f"Skipping non-blend file {blendfile}")
-            continue
+    # Process blend files
+    for parent_dir, blendfiles in blend_groups.items():
+        # Check for decimated.blend
+        decimated_file = next((f for f in blendfiles if f.stem == "decimated"), None)
 
-        bpy.ops.wm.open_mainfile(filepath=str(blendfile))
+        if decimated_file:
+            files_to_process = [decimated_file]
+        else:
+            files_to_process = blendfiles
 
-        folder = export_scene(
-            blendfile,
-            args.output_folder,
-            format=args.format,
-            image_res=args.resolution,
-            vertex_colors=args.vertex_colors,
-            individual_export=args.individual,
-            omniverse_export=args.omniverse,
-        )
-        # wanted to use shutil here but kept making corrupted files
-        subprocess.call(["zip", "-r", str(folder.with_suffix(".zip")), str(folder)])
+        for blendfile in files_to_process:
+            print(f"Processing {blendfile}")
+            bpy.ops.wm.open_mainfile(filepath=str(blendfile))
+
+            folder = export_scene(
+                blendfile,
+                args.output_folder,
+                format=args.format,
+                image_res=args.resolution,
+                vertex_colors=args.vertex_colors,
+                individual_export=args.individual,
+                omniverse_export=args.omniverse,
+            )
+            # Use subprocess to zip the folder
+            subprocess.call(["zip", "-r", str(folder.with_suffix(".zip")), str(folder)])
 
     bpy.ops.wm.quit_blender()
 
