@@ -9,6 +9,7 @@ import time
 import typing
 from collections import defaultdict
 from pathlib import Path
+from typing import List, Optional, Union
 
 # ruff: noqa: E402
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"  # This must be done BEFORE import cv2.
@@ -367,14 +368,29 @@ def execute_tasks(
 
 
 def main(
-    input_folder,
-    output_folder,
-    waypoint_file,
-    scene_seed,
-    task,
-    task_uniqname,
-    **kwargs,
-):
+    input_folder: Optional[Union[str, Path]],
+    output_folder: Union[str, Path],
+    waypoint_file: Optional[Union[str, Path]],
+    scene_seed: int,
+    task: List[str],
+    task_uniqname: Optional[str],
+    **kwargs: Union[str, int, float, bool],
+) -> None:
+    """
+    Main function for executing tasks.
+
+    Args:
+        input_folder (Optional[Union[str, Path]]): Path to the input folder, or None.
+        output_folder (Union[str, Path]): Path to the output folder.
+        waypoint_file (Optional[Union[str, Path]]): Path to the waypoint file, or None.
+        scene_seed (int): Random seed for scene generation.
+        task (List[str]): List of tasks to execute.
+        task_uniqname (Optional[str]): Unique name for the task, or None.
+        **kwargs (Union[str, int, float, bool]): Additional optional parameters.
+
+    Returns:
+        None
+    """
     version_req = ["3.6.0"]
     assert bpy.app.version_string in version_req, (
         f"You are using blender={bpy.app.version_string} which is "
@@ -408,7 +424,7 @@ def main(
                 else:
                     waypoint_folder = output_folder
 
-                with Timer("MAIN TOTAL"):
+                with Timer("Main Total"):
                     execute_tasks(
                         input_folder=input_folder,
                         output_folder=waypoint_folder,
@@ -437,7 +453,6 @@ def main(
                     else:
                         if results_folder.exists():
                             shutil.rmtree(results_folder)
-                        print(frames_folder, results_folder, output_folder)
                         try:
                             shutil.copytree(
                                 frames_folder,
@@ -452,7 +467,7 @@ def main(
 
                         print("results_folder.exists()", results_folder.exists())
     else:
-        with Timer("MAIN TOTAL"):
+        with Timer("Main Total"):
             execute_tasks(
                 input_folder=input_folder,
                 output_folder=output_folder,
@@ -462,7 +477,7 @@ def main(
             )
 
     if task_uniqname is not None:
-        create_text_file(filename=f"FINISH_{task_uniqname}")
+        create_text_file(filename=f"Finish_{task_uniqname}")
         create_text_file(
             filename=f"operative_gin_{task_uniqname}.txt",
             text=gin.operative_config_str(),
