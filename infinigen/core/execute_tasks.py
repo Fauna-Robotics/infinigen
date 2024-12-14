@@ -9,6 +9,7 @@ import time
 import typing
 from collections import defaultdict
 from pathlib import Path
+from typing import List, Optional, Union
 
 # ruff: noqa: E402
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"  # This must be done BEFORE import cv2.
@@ -55,9 +56,9 @@ def render(
     flat_shading=False,
 ):
     if pose is not None:
-        location  = (pose[0], pose[1], pose[2])
-        rotation = (pose[3] + 1.57, pose[4], pose[5] - 1.57 *2)
-        camera_frame = bpy.data.objects['camrig.0']
+        location = (pose[0], pose[1], pose[2])
+        rotation = (pose[3] + 1.57, pose[4], pose[5] - 1.57 * 2)
+        camera_frame = bpy.data.objects["camrig.0"]
         camera_frame.location = location
         camera_frame.rotation_euler = rotation
         print("Updating camera pose to ", location, rotation)
@@ -71,8 +72,11 @@ def render(
     if resample_idx is not None and resample_idx != 0:
         resample_scene(int_hash((scene_seed, resample_idx)))
     with Timer("Render Frames"):
-        render_image_func(frames_folder=Path(output_folder), camera=camera, flat_shading=flat_shading)
-    
+        render_image_func(
+            frames_folder=Path(output_folder), camera=camera, flat_shading=flat_shading
+        )
+
+
 def is_static(obj):
     while True:
         if obj.name.startswith("scatter:"):
@@ -206,7 +210,7 @@ def execute_tasks(
     optimize_terrain_diskusage=False,
     point_trajectory_src_frame=1,
     pose=None,
-    flat_shading=False
+    flat_shading=False,
 ):
     if input_folder != output_folder:
         if reset_assets:
@@ -363,7 +367,30 @@ def execute_tasks(
         )
 
 
-def main(input_folder, output_folder, waypoint_file, scene_seed, task, task_uniqname, **kwargs):
+def main(
+    input_folder: Optional[Union[str, Path]],
+    output_folder: Union[str, Path],
+    waypoint_file: Optional[Union[str, Path]],
+    scene_seed: int,
+    task: List[str],
+    task_uniqname: Optional[str],
+    **kwargs: Union[str, int, float, bool],
+) -> None:
+    """
+    Main function for executing tasks.
+
+    Args:
+        input_folder (Optional[Union[str, Path]]): Path to the input folder, or None.
+        output_folder (Union[str, Path]): Path to the output folder.
+        waypoint_file (Optional[Union[str, Path]]): Path to the waypoint file, or None.
+        scene_seed (int): Random seed for scene generation.
+        task (List[str]): List of tasks to execute.
+        task_uniqname (Optional[str]): Unique name for the task, or None.
+        **kwargs (Union[str, int, float, bool]): Additional optional parameters.
+
+    Returns:
+        None
+    """
     version_req = ["3.6.0"]
     assert bpy.app.version_string in version_req, (
         f"You are using blender={bpy.app.version_string} which is "
@@ -377,65 +404,81 @@ def main(input_folder, output_folder, waypoint_file, scene_seed, task, task_uniq
     output_folder = Path(output_folder).absolute()
 
     pose = []
+    output_folder.mkdir(exist_ok=True, parents=True)
+
+    if task_uniqname is not None:
+        create_text_file(filename=f"START_{task_uniqname}")
+
     if waypoint_file is not None:
         with open(waypoint_file) as waypoints:
             for point in waypoints:
-                p = [float(i) for i in (point.split('\n')[0]).split(',')]
+                p = [float(i) for i in (point.split("\n")[0]).split(",")]
                 pose.append(p)
-    else:
-        pose = [None]
 
-    for i, p in enumerate(pose):
-        for flat in range(2):
-            output_folder.mkdir(exist_ok=True, parents=True)
-            if task[0] == "render" and waypoint_file is not None:
-                waypoint_folder = Path(output_folder) / f"waypoint_{i}"
-                waypoint_folder.mkdir(parents=True, exist_ok=True)
-            else:
-                waypoint_folder = output_folder
-
-            if task_uniqname is not None:
-                create_text_file(filename=f"START_{task_uniqname}")
-
-            with Timer("MAIN TOTAL"):
-                execute_tasks(
-                    input_folder=input_folder,
-                    output_folder=waypoint_folder,
-                    task=task,
-                    scene_seed=scene_seed,
-                    pose=p,
-                    flat_shading=flat,
-                    **kwargs,
-                )
-
-            if task_uniqname is not None:
-                create_text_file(filename=f"FINISH_{task_uniqname}")
-                create_text_file(
-                    filename=f"operative_gin_{task_uniqname}.txt",
-                    text=gin.operative_config_str(),
-                )
-
-            if task[0] == 'render'and waypoint_file is not None:
-                results_folder = Path(output_folder) / "results" / f"waypoint_{i}"
-                frames_folder = Path(output_folder) / "frames"
-
-                if flat:
-                    os.makedirs(results_folder, exist_ok=True)
-                    # Copy contents from frames_folder to results_folder, excluding "Image" subdirectory
-                    for item in os.listdir(frames_folder):
-                        s = frames_folder / item
-                        d = results_folder / item
-                        if item == "Image":  # Skip the "Image" subdirectory
-                            continue
-                        if s.is_dir():
-                            shutil.copytree(s, d, dirs_exist_ok=True)
-                        else:
-                            shutil.copy2(s, d)
-                    shutil.rmtree(frames_folder)
+        for i, p in enumerate(pose):
+            for flat in range(2):
+                output_folder.mkdir(exist_ok=True, parents=True)
+                if task[0] == "render" and waypoint_file is not None:
+                    waypoint_folder = Path(output_folder) / f"waypoint_{i}"
+                    waypoint_folder.mkdir(parents=True, exist_ok=True)
                 else:
-                    if results_folder.exists():
-                        shutil.rmtree(results_folder)
-                    print(frames_folder, results_folder, output_folder)
-                    shutil.copytree(frames_folder, results_folder)
+                    waypoint_folder = output_folder
 
-                print("results_folder.exists()", results_folder.exists())
+                with Timer("Main Total"):
+                    execute_tasks(
+                        input_folder=input_folder,
+                        output_folder=waypoint_folder,
+                        task=task,
+                        scene_seed=scene_seed,
+                        pose=p,
+                        flat_shading=flat,
+                        **kwargs,
+                    )
+                if task[0] == "render" and waypoint_file is not None:
+                    results_folder = Path(output_folder) / "results" / f"waypoint_{i}"
+                    frames_folder = Path(output_folder) / "frames"
+                    if flat:
+                        os.makedirs(results_folder, exist_ok=True)
+                        # Copy contents from frames_folder to results_folder, excluding "Image" subdirectory
+                        for item in os.listdir(frames_folder):
+                            s = frames_folder / item
+                            d = results_folder / item
+                            if item == "Image":  # Skip the "Image" subdirectory
+                                continue
+                            if s.is_dir():
+                                shutil.copytree(s, d, dirs_exist_ok=True)
+                            else:
+                                shutil.copy2(s, d)
+                        shutil.rmtree(frames_folder)
+                    else:
+                        if results_folder.exists():
+                            shutil.rmtree(results_folder)
+                        try:
+                            shutil.copytree(
+                                frames_folder,
+                                results_folder,
+                                dirs_exist_ok=True,
+                                symlinks=True,
+                            )
+                        except shutil.Error as e:
+                            print(f"Error during copy: {e}")
+                        except Exception as e:
+                            print(f"Unexpected error: {e}")
+
+                        print("results_folder.exists()", results_folder.exists())
+    else:
+        with Timer("Main Total"):
+            execute_tasks(
+                input_folder=input_folder,
+                output_folder=output_folder,
+                task=task,
+                scene_seed=scene_seed,
+                **kwargs,
+            )
+
+    if task_uniqname is not None:
+        create_text_file(filename=f"Finish_{task_uniqname}")
+        create_text_file(
+            filename=f"operative_gin_{task_uniqname}.txt",
+            text=gin.operative_config_str(),
+        )
