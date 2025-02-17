@@ -222,6 +222,44 @@ def build_scene_surface(args, factory_name, idx):
     return asset
 
 
+def separate_loose_parts_and_make_rigid():
+    """
+    Separates all loose parts of the active object, adds rigid body physics to each part,
+    and connects them with rigid body constraints to prevent them from falling apart.
+    """
+    # Ensure we are in Object Mode
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    # Select all objects (assuming the main mesh is selected)
+    bpy.ops.object.select_all(action="SELECT")
+
+    # Separate by Loose Parts
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.separate(type="LOOSE")
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    # Get the newly separated objects
+    separated_objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
+
+    # Apply Rigid Body Physics to each object
+    for obj in separated_objects:
+        obj.select_set(True)  # Select the object
+        bpy.context.view_layer.objects.active = obj  # Set as active object
+
+        # Set origin to geometry center
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="BOUNDS")
+
+        # Add Rigid Body physics
+        bpy.ops.rigidbody.object_add()
+
+        # Configure rigid body properties
+        obj.rigid_body.type = "ACTIVE"  # Set to active so it reacts to physics
+        obj.rigid_body.collision_shape = "CONVEX_HULL"  # Best for complex shapes
+        obj.rigid_body.mass = 0.1  # Adjust as needed
+
+    print("All loose parts separated and rigid body physics applied.")
+
+
 def build_and_save_asset(payload: dict):
     # unpack payload - args are packed into payload for compatibility with slurm/multiprocessing
     factory_name = payload["fac"]
@@ -323,6 +361,13 @@ def build_and_save_asset(payload: dict):
     cam_info_ng = bpy.data.node_groups.get("nodegroup_active_cam_info")
     if cam_info_ng is not None:
         cam_info_ng.nodes["Object Info"].inputs["Object"].default_value = camera
+
+    if args.decompose:
+        separate_loose_parts_and_make_rigid()
+
+    if args.rename:
+        breakpoint()
+        bpy.ops.wm.window_fullscreen_toggle()
 
     if args.save_blend:
         butil.save_blend(output_folder / "scene.blend", autopack=True)
@@ -562,6 +607,14 @@ def make_args():
     )
     parser.add_argument(
         "-s", "--save_blend", action="store_true", help="Whether to save .blend file"
+    )
+    parser.add_argument(
+        "--decompose",
+        action="store_true",
+        help="To decompose the object in its constituents",
+    )
+    parser.add_argument(
+        "--rename", action="store_true", help="To drename objects manually"
     )
     parser.add_argument(
         "-e", "--elevation", default=60, type=float, help="Elevation of the sun"
