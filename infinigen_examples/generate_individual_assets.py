@@ -365,10 +365,6 @@ def build_and_save_asset(payload: dict):
     if args.decompose:
         separate_loose_parts_and_make_rigid()
 
-    if args.rename:
-        breakpoint()
-        bpy.ops.wm.window_fullscreen_toggle()
-
     if args.save_blend:
         butil.save_blend(output_folder / "scene.blend", autopack=True)
         tag_system.save_tag(output_folder / "MaskTag.json")
@@ -612,9 +608,6 @@ def make_args():
         "--decompose",
         action="store_true",
         help="To decompose the object in its constituents",
-    )
-    parser.add_argument(
-        "--rename", action="store_true", help="To drename objects manually"
     )
     parser.add_argument(
         "-e", "--elevation", default=60, type=float, help="Elevation of the sun"
