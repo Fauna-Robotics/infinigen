@@ -55,6 +55,9 @@ python -m infinigen_examples.generate_individual_assets --output_folder outputs/
 
 # See the full list of supported formats
 python -m infinigen_examples.generate_individual_assets --help
+
+# To break down the mesh into its basic constituents
+python -m infinigen_examples.generate_individual_assets --output_folder outputs/bush -f BushFactory -n 1 --render none --export usdc --decompose
 ```
 
 
